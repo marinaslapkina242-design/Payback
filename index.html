@@ -1159,16 +1159,45 @@ const G = {
             const sw = new THREE.Mesh(new THREE.PlaneGeometry(b.w + 4, b.d + 4), swMat);
             sw.rotation.x = -Math.PI / 2; sw.position.set(b.x, 0.02, b.z); this.scene.add(sw);
         });
-        // Street lights
+        // Street lights along main roads
         for (let i = -80; i <= 80; i += 20) {
-            this._buildStreetLight(i, 0.5);
-            this._buildStreetLight(0.5, i);
+            this._buildStreetLight(i, 7); this._buildStreetLight(i, -7);
+            this._buildStreetLight(7, i); this._buildStreetLight(-7, i);
         }
+        // Trees along sidewalks
+        for (let i = -70; i <= 70; i += 15) {
+            this._buildTree(i, 9);  this._buildTree(i, -9);
+            this._buildTree(9, i);  this._buildTree(-9, i);
+        }
+        // Extra trees in open areas
+        [[-15,45],[15,45],[-45,15],[45,-15],[30,30],[-30,-30],[60,60],[-60,-60]].forEach(([tx,tz]) => {
+            this._buildTree(tx, tz);
+        });
         // Car spawns
         this.carSpawns = [
             { x:20, z:0 }, { x:-20, z:0 }, { x:0, z:20 }, { x:0, z:-20 },
             { x:50, z:0 }, { x:-50, z:0 }, { x:0, z:50 }, { x:0, z:-50 },
         ];
+    },
+
+    _buildTree(x, z) {
+        const g = new THREE.Group();
+        // Trunk
+        const trunk = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.12, 0.18, 1.8, 7),
+            new THREE.MeshStandardMaterial({ color: 0x7a5230, roughness: 1.0 })
+        );
+        trunk.position.y = 0.9; g.add(trunk);
+        // Foliage layers (3 cones = nice low-poly tree)
+        const leafMat = new THREE.MeshStandardMaterial({ color: 0x3a8a3a, roughness: 0.9 });
+        [{ y: 2.0, r: 1.4, h: 1.6 }, { y: 2.9, r: 1.0, h: 1.4 }, { y: 3.7, r: 0.6, h: 1.2 }].forEach(l => {
+            const cone = new THREE.Mesh(new THREE.ConeGeometry(l.r, l.h, 7), leafMat);
+            cone.position.y = l.y; g.add(cone);
+        });
+        g.position.set(x, 0, z);
+        g.castShadow = true;
+        this.scene.add(g);
+        return g;
     },
 
     _buildStreetLight(x, z) {
@@ -1307,73 +1336,176 @@ const G = {
     // ─────────────────────────────────────
     // PLAYER & CARS
     // ─────────────────────────────────────
+    _buildCharacter(color) {
+        const g = new THREE.Group();
+        const c = parseInt((color || '#FF2020').replace('#',''), 16);
+        const matSkin  = new THREE.MeshStandardMaterial({ color: 0xffcc99, roughness: 0.5 });
+        const matCloth = new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 });
+        const matPants = new THREE.MeshStandardMaterial({ color: 0x223366, roughness: 0.9 });
+        const matShoe  = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+        const matHair  = new THREE.MeshStandardMaterial({ color: 0x332200, roughness: 1.0 });
+        const matEye   = new THREE.MeshStandardMaterial({ color: 0x111111 });
+
+        // LEGS
+        const mkLeg = (xOff) => {
+            const lg = new THREE.Group(); lg.position.set(xOff, 0, 0);
+            const upper = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.5, 0.22), matPants); upper.position.y = -0.25; lg.add(upper);
+            const lower = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.45, 0.20), matPants); lower.position.y = -0.72; lg.add(lower);
+            const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.12, 0.32), matShoe); shoe.position.set(0, -0.97, 0.06); lg.add(shoe);
+            return lg;
+        };
+        const legGroup = new THREE.Group(); legGroup.position.y = 0.95;
+        const legL = mkLeg(-0.14); const legR = mkLeg(0.14);
+        legGroup.add(legL); legGroup.add(legR); g.add(legGroup);
+
+        // TORSO
+        const torsoG = new THREE.Group(); torsoG.position.y = 1.62;
+        const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.62, 0.30), matCloth); torsoG.add(shirt);
+        const belt = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.07, 0.32), matShoe); belt.position.y = -0.29; torsoG.add(belt);
+        g.add(torsoG);
+
+        // ARMS
+        const mkArm = (xOff) => {
+            const ag = new THREE.Group(); ag.position.set(xOff, 0.22, 0);
+            const upper = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.42, 0.18), matCloth); upper.position.y = -0.21; ag.add(upper);
+            const lower = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.38, 0.16), matSkin); lower.position.y = -0.60; ag.add(lower);
+            const hand = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.14, 0.18), matSkin); hand.position.y = -0.82; ag.add(hand);
+            torsoG.add(ag); return ag;
+        };
+        const armL = mkArm(-0.40); const armR = mkArm(0.40);
+
+        // HEAD
+        const headG = new THREE.Group(); headG.position.y = 2.18;
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.46, 0.42), matSkin); headG.add(head);
+        [-0.10, 0.10].forEach(ex => {
+            const eye = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.07, 0.02), matEye);
+            eye.position.set(ex, 0.03, 0.22); headG.add(eye);
+        });
+        const hair = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.12, 0.44), matHair); hair.position.y = 0.25; headG.add(hair);
+        const hairBack = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.30, 0.08), matHair); hairBack.position.set(0, 0.10, -0.22); headG.add(hairBack);
+        [-0.24, 0.24].forEach(ex => {
+            const ear = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.10, 0.08), matSkin);
+            ear.position.set(ex, 0, 0); headG.add(ear);
+        });
+        g.add(headG);
+        g.castShadow = true;
+        return { group: g, armL, armR, legL, legR, torso: torsoG, head: headG };
+    },
+
     _buildPlayer() {
         this.hp = 100;
         this.playerGroup = new THREE.Group();
-        const color = parseInt((this.player.color || '#FF2020').replace('#', ''), 16);
-        const matSkin  = new THREE.MeshStandardMaterial({ color: 0xffcc99, roughness: 0.4 });
-        const matCloth = new THREE.MeshStandardMaterial({ color, roughness: 0.7 });
-        const matPants = new THREE.MeshStandardMaterial({ color: 0x111133, roughness: 0.8 });
-        // Torso
-        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.8, 0.35), matCloth);
-        torso.position.y = 1.35; this.playerGroup.add(torso);
-        // Head
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), matSkin);
-        head.position.set(0, 0.65, 0); torso.add(head);
-        // Arms
-        const mkArm = x => {
-            const g = new THREE.Group(); g.position.set(x, 0.4, 0);
-            const up = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.5, 0.25), matCloth); up.position.y = -0.25; g.add(up);
-            const lo = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.45, 0.22), matSkin); lo.position.y = -0.72; g.add(lo);
-            torso.add(g); return g;
-        };
-        this._armL = mkArm(-0.48); this._armR = mkArm(0.48);
-        // Legs
-        const mkLeg = x => {
-            const g = new THREE.Group(); g.position.set(x, -0.42, 0);
-            const up = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.55, 0.28), matPants); up.position.y = -0.27; g.add(up);
-            const lo = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.5, 0.25), matPants); lo.position.y = -0.77; g.add(lo);
-            torso.add(g); return g;
-        };
-        this._legL = mkLeg(-0.18); this._legR = mkLeg(0.18);
-        this._torso = torso;
+        const ch = this._buildCharacter(this.player.color);
+        this.playerGroup.add(ch.group);
+        this._armL = ch.armL; this._armR = ch.armR;
+        this._legL = ch.legL; this._legR = ch.legR;
+        this._torso = ch.torso;
         this.scene.add(this.playerGroup);
         this.playerGroup.position.set(0, 0, 0);
-        this._rig = { lA: this._armL, rA: this._armR, lL: this._legL, rL: this._legR, torso };
+        this._rig = { lA: ch.armL, rA: ch.armR, lL: ch.legL, rL: ch.legR, torso: ch.torso };
         this._updateHUD();
     },
 
     _buildCar(x, z, color, isPlayer) {
         const g = new THREE.Group();
-        const matBody = new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.6 });
-        const matGlass = new THREE.MeshStandardMaterial({ color: 0x88ccff, roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.7 });
-        const matTire  = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
-        const matRim   = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8 });
-        // Body
-        const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.65, 4.2), matBody);
-        body.position.y = 0.45; g.add(body);
-        // Cabin
-        const cab = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.55, 2.1), matBody);
-        cab.position.set(0, 0.95, -0.2); g.add(cab);
-        // Windshield
-        const ws = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.5), matGlass);
-        ws.position.set(0, 0.95, 0.86); ws.rotation.x = 0.3; g.add(ws);
-        // Wheels
-        const mkWheel = (x, z) => {
-            const wg = new THREE.Group();
-            const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.28, 12), matTire);
-            tire.rotation.z = Math.PI / 2; wg.add(tire);
-            const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.3, 6), matRim);
-            rim.rotation.z = Math.PI / 2; wg.add(rim);
-            wg.position.set(x, 0.35, z); g.add(wg); return wg;
-        };
-        g._wheels = [mkWheel(-1.1, 1.4), mkWheel(1.1, 1.4), mkWheel(-1.1, -1.4), mkWheel(1.1, -1.4)];
-        // Headlights
-        [[-0.7, 0.45, 2.12], [0.7, 0.45, 2.12]].forEach(([x, y, z]) => {
-            const hl = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.2), new THREE.MeshBasicMaterial({ color: 0xffffcc }));
-            hl.position.set(x, y, z); g.add(hl);
-            const pl = new THREE.PointLight(0xffffcc, 0.6, 12); pl.position.set(x, y, z + 0.5); g.add(pl);
+        const matBody  = new THREE.MeshStandardMaterial({ color, roughness: 0.25, metalness: 0.7 });
+        const matDark  = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3, metalness: 0.5 });
+        const matGlass = new THREE.MeshStandardMaterial({ color: 0xaaddff, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.5 });
+        const matTire  = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 1.0 });
+        const matRim   = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.1 });
+        const matLight = new THREE.MeshBasicMaterial({ color: 0xffffaa });
+        const matTailL = new THREE.MeshBasicMaterial({ color: 0xff2200 });
+
+        // --- CHASSIS (bottom) ---
+        const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.22, 4.4), matDark);
+        chassis.position.y = 0.28; g.add(chassis);
+
+        // --- BODY lower ---
+        const bodyLow = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.45, 4.2), matBody);
+        bodyLow.position.y = 0.55; g.add(bodyLow);
+
+        // --- BODY upper (cabin) ---
+        const bodyCab = new THREE.Mesh(new THREE.BoxGeometry(1.80, 0.52, 2.2), matBody);
+        bodyCab.position.set(0, 1.00, -0.15); g.add(bodyCab);
+
+        // --- ROOF ---
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.08, 2.1), matBody);
+        roof.position.set(0, 1.28, -0.15); g.add(roof);
+
+        // --- WINDSHIELD front ---
+        const wsFront = new THREE.Mesh(new THREE.PlaneGeometry(1.65, 0.50), matGlass);
+        wsFront.position.set(0, 1.02, 0.96); wsFront.rotation.x = -0.35; g.add(wsFront);
+
+        // --- WINDSHIELD rear ---
+        const wsRear = new THREE.Mesh(new THREE.PlaneGeometry(1.62, 0.46), matGlass);
+        wsRear.position.set(0, 1.02, -1.26); wsRear.rotation.x = 0.35; g.add(wsRear);
+
+        // --- SIDE WINDOWS ---
+        [-0.91, 0.91].forEach(sx => {
+            const winSide = new THREE.Mesh(new THREE.PlaneGeometry(1.60, 0.38), matGlass);
+            winSide.position.set(sx, 1.04, -0.15);
+            winSide.rotation.y = sx > 0 ? Math.PI/2 : -Math.PI/2;
+            g.add(winSide);
         });
+
+        // --- HOOD detail ---
+        const hood = new THREE.Mesh(new THREE.BoxGeometry(1.80, 0.05, 1.20), matBody);
+        hood.position.set(0, 0.80, 1.55); g.add(hood);
+
+        // --- BUMPERS ---
+        const bumpF = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.22, 0.18), matDark);
+        bumpF.position.set(0, 0.44, 2.20); g.add(bumpF);
+        const bumpR = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.22, 0.18), matDark);
+        bumpR.position.set(0, 0.44, -2.20); g.add(bumpR);
+
+        // --- HEADLIGHTS (front) ---
+        [[-0.72, 2.12], [0.72, 2.12]].forEach(([hx, hz]) => {
+            const hl = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.18, 0.06), matLight);
+            hl.position.set(hx, 0.60, hz); g.add(hl);
+            // DRL strip
+            const drl = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.04, 0.04), matLight);
+            drl.position.set(hx, 0.52, hz); g.add(drl);
+        });
+
+        // --- TAILLIGHTS (rear) ---
+        [[-0.72, -2.12], [0.72, -2.12]].forEach(([hx, hz]) => {
+            const tl = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.14, 0.06), matTailL);
+            tl.position.set(hx, 0.60, hz); g.add(tl);
+        });
+
+        // --- WHEELS (4x detailed) ---
+        const mkWheel = (wx, wz) => {
+            const wg = new THREE.Group();
+            // Tire
+            const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.26, 16), matTire);
+            tire.rotation.z = Math.PI/2; wg.add(tire);
+            // Rim outer
+            const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.28, 10), matRim);
+            rim.rotation.z = Math.PI/2; wg.add(rim);
+            // Rim hub
+            const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.30, 8), matDark);
+            hub.rotation.z = Math.PI/2; wg.add(hub);
+            // Spokes (5x)
+            for (let s = 0; s < 5; s++) {
+                const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.30, 0.04), matRim);
+                spoke.rotation.z = (s / 5) * Math.PI * 2; wg.add(spoke);
+            }
+            wg.position.set(wx, 0.38, wz);
+            g.add(wg); return wg;
+        };
+        g._wheels = [mkWheel(-1.10, 1.50), mkWheel(1.10, 1.50), mkWheel(-1.10, -1.50), mkWheel(1.10, -1.50)];
+
+        // --- EXHAUST ---
+        const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.3, 8), matDark);
+        exhaust.rotation.x = Math.PI/2; exhaust.position.set(0.5, 0.30, -2.25); g.add(exhaust);
+
+        // --- SHADOW PLANE ---
+        const shadow = new THREE.Mesh(
+            new THREE.PlaneGeometry(2.2, 4.6),
+            new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18 })
+        );
+        shadow.rotation.x = -Math.PI/2; shadow.position.y = 0.01; g.add(shadow);
+
         g.position.set(x, 0, z);
         g.castShadow = true;
         this.scene.add(g);
@@ -2063,19 +2195,8 @@ const G = {
 
     _buildOtherPlayer(name, color, gang) {
         try {
-            const g = new THREE.Group();
-            const c = parseInt((color || '#888888').replace('#',''), 16) || 0x888888;
-            const matBody = new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 });
-            const matSkin = new THREE.MeshStandardMaterial({ color: 0xffcc99, roughness: 0.4 });
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.8, 0.35), matBody);
-            torso.position.y = 1.35; g.add(torso);
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), matSkin);
-            head.position.set(0, 0.65, 0); torso.add(head);
-            // Arms & legs
-            [[-0.48, true],[0.48, true],[-0.18, false],[0.18, false]].forEach(([x, isArm]) => {
-                const limb = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.25), isArm ? matBody : matSkin);
-                limb.position.set(x, isArm ? 0.05 : -0.42, 0); torso.add(limb);
-            });
+            const ch = this._buildCharacter(color || '#888888');
+            const g = ch.group;
             // Nametag
             const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 48;
             const ctx = canvas.getContext('2d');
