@@ -1504,13 +1504,6 @@ const G = {
         const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.3, 8), matDark);
         exhaust.rotation.x = Math.PI/2; exhaust.position.set(0.5, 0.30, -2.25); g.add(exhaust);
 
-        // --- SHADOW PLANE ---
-        const shadow = new THREE.Mesh(
-            new THREE.PlaneGeometry(2.2, 4.6),
-            new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18 })
-        );
-        shadow.rotation.x = -Math.PI/2; shadow.position.y = 0.01; g.add(shadow);
-
         g.position.set(x, 0, z);
         g.castShadow = true;
         this.scene.add(g);
