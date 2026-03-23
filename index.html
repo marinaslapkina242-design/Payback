@@ -996,8 +996,8 @@ const G = {
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
         this.scene = new THREE.Scene();
-        this.scene.fog = new THREE.Fog(0x87CEEB, 60, 300);
-        this.scene.background = new THREE.Color(0x87CEEB);
+        this.scene.fog = new THREE.Fog(0x7ab0d4, 80, 320);
+        this.scene.background = new THREE.Color(0x7ab0d4);
 
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
 
@@ -1032,7 +1032,7 @@ const G = {
         const map = this.currentMap;
 
         // Ground
-        const groundColor = map === 'desert' ? 0xd4b87a : map === 'port' ? 0x3a4050 : 0x888888;
+        const groundColor = map === 'desert' ? 0xc8a96a : map === 'port' ? 0x2a3040 : 0x3a3a3a;
         const ground = new THREE.Mesh(
             new THREE.PlaneGeometry(400, 400),
             new THREE.MeshStandardMaterial({ color: groundColor, roughness: 0.9 })
@@ -1053,7 +1053,7 @@ const G = {
     _box(w, h, d, color, x, y, z, rx, rz) {
         const m = new THREE.Mesh(
             new THREE.BoxGeometry(w, h, d),
-            new THREE.MeshStandardMaterial({ color, roughness: 0.7 })
+            new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.05 })
         );
         m.position.set(x, y, z);
         if (rx) m.rotation.x = rx;
@@ -1064,126 +1064,198 @@ const G = {
     },
 
     _buildCity() {
-        // Roads (dark asphalt with road markings)
-        const roadMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.95 });
-        const markMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        // Main horizontal road
-        const r1 = new THREE.Mesh(new THREE.PlaneGeometry(200, 12), roadMat);
-        r1.rotation.x = -Math.PI / 2; r1.position.set(0, 0.01, 0); this.scene.add(r1);
-        // Main vertical road
-        const r2 = new THREE.Mesh(new THREE.PlaneGeometry(12, 200), roadMat);
-        r2.rotation.x = -Math.PI / 2; r2.position.set(0, 0.01, 0); this.scene.add(r2);
-        // Side roads
-        [[-40, false],[40, false],[-40, true],[40, true]].forEach(([pos, vert]) => {
-            const rr = new THREE.Mesh(new THREE.PlaneGeometry(vert ? 8 : 200, vert ? 200 : 8), roadMat);
-            rr.rotation.x = -Math.PI / 2; rr.position.set(vert ? pos : 0, 0.01, vert ? 0 : pos); this.scene.add(rr);
+        // ── Materials ──
+        const roadMat  = new THREE.MeshStandardMaterial({ color: 0x252525, roughness: 1.0 });
+        const sideMat  = new THREE.MeshStandardMaterial({ color: 0x888880, roughness: 0.95 });
+        const markW    = new THREE.MeshBasicMaterial({ color: 0xeeeecc });  // white lines
+        const markY    = new THREE.MeshBasicMaterial({ color: 0xddaa00 });  // yellow centre
+
+        // ── Ground base (already placed in _buildWorld) ──
+        // ── Sidewalk layer slightly above ground ──
+        const sw0 = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), sideMat);
+        sw0.rotation.x = -Math.PI/2; sw0.position.y = 0.005; this.scene.add(sw0);
+
+        // ── Roads cut into sidewalk ──
+        const addRoad = (w, h, x, z) => {
+            const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), roadMat);
+            m.rotation.x = -Math.PI/2; m.position.set(x, 0.01, z); this.scene.add(m);
+        };
+        // Main cross
+        addRoad(200, 14, 0, 0);   // horizontal
+        addRoad(14, 200, 0, 0);   // vertical
+        // Side streets
+        [[-45,false],[45,false],[-45,true],[45,true]].forEach(([p,v]) => {
+            addRoad(v?10:200, v?200:10, v?p:0, v?0:p);
         });
-        // Road center line markings
-        for (let i = -90; i < 90; i += 8) {
-            const line = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 4), markMat);
-            line.rotation.x = -Math.PI / 2; line.position.set(0, 0.02, i); this.scene.add(line);
-            const line2 = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.3), markMat);
-            line2.rotation.x = -Math.PI / 2; line2.position.set(i, 0.02, 0); this.scene.add(line2);
+
+        // ── Road markings ──
+        // Yellow centre dashes
+        for (let i = -95; i < 95; i += 9) {
+            const d1 = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 4.5), markY);
+            d1.rotation.x = -Math.PI/2; d1.position.set(0, 0.02, i); this.scene.add(d1);
+            const d2 = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 0.25), markY);
+            d2.rotation.x = -Math.PI/2; d2.position.set(i, 0.02, 0); this.scene.add(d2);
+        }
+        // White edge lines
+        [-6.5, 6.5].forEach(off => {
+            const el = new THREE.Mesh(new THREE.PlaneGeometry(200, 0.2), markW);
+            el.rotation.x = -Math.PI/2; el.position.set(0, 0.02, off); this.scene.add(el);
+            const el2 = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 200), markW);
+            el2.rotation.x = -Math.PI/2; el2.position.set(off, 0.02, 0); this.scene.add(el2);
+        });
+        // Crosswalk stripes at intersections
+        const addCrosswalk = (cx, cz, horiz) => {
+            for (let s = -2; s <= 2; s++) {
+                const m = new THREE.Mesh(
+                    new THREE.PlaneGeometry(horiz ? 1.2 : 13, horiz ? 13 : 1.2),
+                    markW
+                );
+                m.rotation.x = -Math.PI/2;
+                m.position.set(cx + (horiz ? s*2 : 0), 0.025, cz + (horiz ? 0 : s*2));
+                this.scene.add(m);
+            }
+        };
+        addCrosswalk(0, 8, true); addCrosswalk(0, -8, true);
+        addCrosswalk(8, 0, false); addCrosswalk(-8, 0, false);
+
+        // ── Buildings ──
+        // Realistic urban palette: concrete greys, brick reds, glass steel
+        const configs = [
+            // Centre skyscrapers
+            { x:28, z:28, w:15, d:15, h:52, c:0x5a6a7a, wc:0x88bbdd },  // glass tower
+            { x:-28,z:28, w:13, d:13, h:44, c:0x6a5a5a, wc:0xccaa88 }, // brick
+            { x:28, z:-28,w:16, d:11, h:48, c:0x4a5560, wc:0x99bbcc }, // concrete
+            { x:-28,z:-28,w:12, d:16, h:40, c:0x7a6a5a, wc:0xddcc99 }, // sandstone
+            // Mid-rise
+            { x:58, z:28, w:22, d:16, h:26, c:0x556677, wc:0x88aacc },
+            { x:-58,z:28, w:20, d:15, h:30, c:0x664444, wc:0xffcc99 }, // red brick
+            { x:58, z:-28,w:18, d:20, h:22, c:0x4a5a4a, wc:0xaaccaa },
+            { x:-58,z:-28,w:24, d:18, h:28, c:0x5a5555, wc:0xbbbbbb },
+            // Outer blocks
+            { x:28, z:58, w:16, d:20, h:18, c:0x665544, wc:0xddbb99 },
+            { x:-28,z:58, w:20, d:15, h:22, c:0x445566, wc:0x99bbdd },
+            { x:28, z:-58,w:18, d:18, h:24, c:0x554444, wc:0xccaaaa },
+            { x:-28,z:-58,w:14, d:22, h:20, c:0x556644, wc:0xaaccaa },
+            { x:85, z:5,  w:26, d:20, h:16, c:0x4a4a5a, wc:0xaaaacc },
+            { x:-85,z:-5, w:22, d:24, h:18, c:0x5a4a4a, wc:0xccaaaa },
+            { x:5,  z:85, w:20, d:26, h:14, c:0x4a5a4a, wc:0xaaccaa },
+            { x:-5, z:-85,w:24, d:22, h:20, c:0x5a5a4a, wc:0xccccaa },
+        ];
+
+        configs.forEach(b => {
+            // Main body — roughness varies
+            const mat = new THREE.MeshStandardMaterial({ color: b.c, roughness: 0.7 + Math.random()*0.2, metalness: 0.05 });
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), mat);
+            mesh.position.set(b.x, b.h/2, b.z);
+            mesh.castShadow = mesh.receiveShadow = true;
+            this.scene.add(mesh);
+            this.buildings.push({ mesh, x: b.x, z: b.z, w: b.w, d: b.d });
+
+            // Window grid on all 4 faces
+            const winMat = new THREE.MeshBasicMaterial({ color: b.wc });
+            const winRows = Math.floor(b.h / 3.5);
+            const winColsX = Math.floor(b.w / 3.5);
+            const winColsZ = Math.floor(b.d / 3.5);
+            const addWindows = (cols, faceW, offsetX, offsetZ, ry) => {
+                for (let row = 0; row < winRows; row++) {
+                    for (let col = 0; col < cols; col++) {
+                        const wx = offsetX + (col - (cols-1)/2) * (faceW / cols);
+                        const wy = 2.5 + row * 3.5;
+                        const win = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.8), winMat.clone());
+                        // randomise on/off lights at night
+                        if (Math.random() < 0.3) win.material.color.set(0x111122);
+                        win.position.set(wx, wy, offsetZ);
+                        win.rotation.y = ry;
+                        this.scene.add(win);
+                    }
+                }
+            };
+            addWindows(winColsX, b.w, b.x, b.z + b.d/2 + 0.06, 0);
+            addWindows(winColsX, b.w, b.x, b.z - b.d/2 - 0.06, Math.PI);
+            addWindows(winColsZ, b.d, b.x + b.w/2 + 0.06, b.z, Math.PI/2);
+            addWindows(winColsZ, b.d, b.x - b.w/2 - 0.06, b.z, -Math.PI/2);
+
+            // Rooftop details — AC unit, water tower style
+            const roof = new THREE.Mesh(new THREE.BoxGeometry(b.w*0.3, 1.5, b.d*0.3),
+                new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 1 }));
+            roof.position.set(b.x + b.w*0.2, b.h + 0.75, b.z - b.d*0.2); this.scene.add(roof);
+        });
+
+        // ── Street lights ── 
+        for (let i = -80; i <= 80; i += 18) {
+            this._buildStreetLight(i, 8);  this._buildStreetLight(i, -8);
+            this._buildStreetLight(8, i);  this._buildStreetLight(-8, i);
         }
 
-        // Buildings — blocks of the city (Payback 2 style: light concrete/brick)
-        const buildingConfigs = [
-            // Skyscrapers (center) — glass/concrete
-            { x:25, z:25, w:14, d:14, h:45, c:0x8899aa },
-            { x:-25, z:25, w:12, d:12, h:38, c:0xaa9988 },
-            { x:25, z:-25, w:16, d:10, h:42, c:0x99aabb },
-            { x:-25, z:-25, w:10, d:16, h:35, c:0xbbaa99 },
-            // Mid-rise — brick/concrete
-            { x:55, z:25, w:20, d:16, h:22, c:0xcc9966 },
-            { x:-55, z:25, w:18, d:14, h:28, c:0xaabb99 },
-            { x:55, z:-25, w:16, d:20, h:18, c:0xcc8855 },
-            { x:-55, z:-25, w:22, d:18, h:25, c:0x99aacc },
-            // Far blocks
-            { x:25, z:55, w:14, d:18, h:16, c:0xbbaa88 },
-            { x:-25, z:55, w:18, d:14, h:20, c:0x99bbaa },
-            { x:25, z:-55, w:16, d:16, h:24, c:0xcc9977 },
-            { x:-25, z:-55, w:12, d:20, h:18, c:0xaabb88 },
-            { x:80, z:0, w:24, d:18, h:14, c:0xbbccaa },
-            { x:-80, z:0, w:20, d:22, h:16, c:0x99aabb },
-            { x:0, z:80, w:18, d:24, h:12, c:0xcc9966 },
-            { x:0, z:-80, w:22, d:20, h:18, c:0xaabbcc },
-        ];
-        buildingConfigs.forEach(b => {
-            const mesh = this._box(b.w, b.h, b.d, b.c, b.x, b.h/2, b.z);
-            this.buildings.push({ mesh, x: b.x, z: b.z, w: b.w, d: b.d });
-            // Windows grid
-            const winMat = new THREE.MeshBasicMaterial({ color: 0x99ccff, transparent: true, opacity: 0.7 });
-            const winRows = Math.floor(b.h / 4);
-            for (let row = 0; row < winRows; row++) {
-                for (let col = 0; col < 3; col++) {
-                    const win = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.5), winMat);
-                    const wx = b.x + (col - 1) * (b.w * 0.3);
-                    const wy = 3 + row * 4;
-                    win.position.set(wx, wy, b.z + b.d / 2 + 0.05);
-                    this.scene.add(win);
-                    // Back face
-                    const win2 = win.clone();
-                    win2.position.set(wx, wy, b.z - b.d / 2 - 0.05);
-                    win2.rotation.y = Math.PI;
-                    this.scene.add(win2);
-                }
-            }
-            // Sidewalk around building
-            const swMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.9 });
-            const sw = new THREE.Mesh(new THREE.PlaneGeometry(b.w + 4, b.d + 4), swMat);
-            sw.rotation.x = -Math.PI / 2; sw.position.set(b.x, 0.02, b.z); this.scene.add(sw);
-        });
-        // Street lights along main roads
-        for (let i = -80; i <= 80; i += 20) {
-            this._buildStreetLight(i, 7); this._buildStreetLight(i, -7);
-            this._buildStreetLight(7, i); this._buildStreetLight(-7, i);
+        // ── Trees — darker, more realistic green ──
+        for (let i = -72; i <= 72; i += 16) {
+            this._buildTree(i,  10); this._buildTree(i, -10);
+            this._buildTree(10, i);  this._buildTree(-10, i);
         }
-        // Trees along sidewalks
-        for (let i = -70; i <= 70; i += 15) {
-            this._buildTree(i, 9);  this._buildTree(i, -9);
-            this._buildTree(9, i);  this._buildTree(-9, i);
-        }
-        // Extra trees in open areas
-        [[-15,45],[15,45],[-45,15],[45,-15],[30,30],[-30,-30],[60,60],[-60,-60]].forEach(([tx,tz]) => {
-            this._buildTree(tx, tz);
-        });
-        // Car spawns
+        [[-18,48],[18,48],[-48,18],[48,-18],[32,32],[-32,-32],[65,65],[-65,-65],
+         [48,48],[-48,48],[48,-48],[-48,-48]].forEach(([tx,tz]) => this._buildTree(tx,tz));
+
+        // ── Car spawns ──
         this.carSpawns = [
-            { x:20, z:0 }, { x:-20, z:0 }, { x:0, z:20 }, { x:0, z:-20 },
-            { x:50, z:0 }, { x:-50, z:0 }, { x:0, z:50 }, { x:0, z:-50 },
+            {x:22,z:0},{x:-22,z:0},{x:0,z:22},{x:0,z:-22},
+            {x:55,z:0},{x:-55,z:0},{x:0,z:55},{x:0,z:-55},
         ];
     },
 
     _buildTree(x, z) {
         const g = new THREE.Group();
-        // Trunk
+        const scale = 0.8 + Math.random() * 0.5;
+        // Trunk — dark brown
         const trunk = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.12, 0.18, 1.8, 7),
-            new THREE.MeshStandardMaterial({ color: 0x7a5230, roughness: 1.0 })
+            new THREE.CylinderGeometry(0.1*scale, 0.16*scale, 2.2*scale, 6),
+            new THREE.MeshStandardMaterial({ color: 0x4a3020, roughness: 1.0 })
         );
-        trunk.position.y = 0.9; g.add(trunk);
-        // Foliage layers (3 cones = nice low-poly tree)
-        const leafMat = new THREE.MeshStandardMaterial({ color: 0x3a8a3a, roughness: 0.9 });
-        [{ y: 2.0, r: 1.4, h: 1.6 }, { y: 2.9, r: 1.0, h: 1.4 }, { y: 3.7, r: 0.6, h: 1.2 }].forEach(l => {
-            const cone = new THREE.Mesh(new THREE.ConeGeometry(l.r, l.h, 7), leafMat);
-            cone.position.y = l.y; g.add(cone);
-        });
-        g.position.set(x, 0, z);
+        trunk.position.y = 1.1*scale; g.add(trunk);
+        // Canopy — round leafy tree (not always pine)
+        const useRound = Math.random() > 0.4;
+        const leafColor = [0x2d6e2d, 0x1e5c1e, 0x3a7a2a, 0x2a6030][Math.floor(Math.random()*4)];
+        const leafMat = new THREE.MeshStandardMaterial({ color: leafColor, roughness: 1.0 });
+        if (useRound) {
+            // Round deciduous tree
+            const ball = new THREE.Mesh(new THREE.SphereGeometry(1.4*scale, 7, 5), leafMat);
+            ball.position.y = 3.2*scale; g.add(ball);
+            const ball2 = new THREE.Mesh(new THREE.SphereGeometry(1.0*scale, 6, 4), leafMat);
+            ball2.position.set(0.6*scale, 2.6*scale, 0.3*scale); g.add(ball2);
+        } else {
+            // Conifer
+            [{y:2.2,r:1.3},{y:3.2,r:0.95},{y:4.0,r:0.6},{y:4.7,r:0.3}].forEach(l => {
+                const cone = new THREE.Mesh(new THREE.ConeGeometry(l.r*scale, 1.3*scale, 7), leafMat);
+                cone.position.y = l.y*scale; g.add(cone);
+            });
+        }
+        g.position.set(x + (Math.random()-0.5)*1.5, 0, z + (Math.random()-0.5)*1.5);
         g.castShadow = true;
         this.scene.add(g);
         return g;
     },
 
     _buildStreetLight(x, z) {
+        const g = new THREE.Group();
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.5 });
         // Pole
-        const pole = this._box(0.2, 6, 0.2, 0x444444, x, 3, z);
-        // Head
-        const head = this._box(3, 0.2, 0.4, 0x555555, x + 1.4, 6.1, z);
-        // Light
-        const light = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffffaa }));
-        light.position.set(x + 1.4, 5.8, z); this.scene.add(light);
-        const pl = new THREE.PointLight(0xffffaa, 0.8, 15);
-        pl.position.set(x + 1.4, 5.8, z); this.scene.add(pl);
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 7, 6), poleMat);
+        pole.position.y = 3.5; g.add(pole);
+        // Curved arm
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.12, 0.12), poleMat);
+        arm.position.set(1.2, 7.1, 0); g.add(arm);
+        // Lamp housing
+        const housing = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.25, 0.6),
+            new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 }));
+        housing.position.set(2.4, 6.9, 0); g.add(housing);
+        // Lamp glow
+        const lamp = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5),
+            new THREE.MeshBasicMaterial({ color: 0xfff5cc, side: THREE.DoubleSide }));
+        lamp.rotation.x = Math.PI/2; lamp.position.set(2.4, 6.76, 0); g.add(lamp);
+        // Point light
+        const pl = new THREE.PointLight(0xfff0aa, 1.2, 20);
+        pl.position.set(2.4, 6.8, 0); g.add(pl);
+        g.position.set(x, 0, z);
+        this.scene.add(g);
     },
 
     _buildPort() {
@@ -1785,11 +1857,11 @@ const G = {
         let skyR, skyG, skyB, sunInt, ambInt, fogFar;
         if (t < 0.25) {          // night → dawn
             const f = t / 0.25;
-            skyR = lerpC(10, 255, f * 0.4); skyG = lerpC(10, 140, f * 0.4); skyB = lerpC(30, 80, f);
+            skyR = lerpC(10, 180, f * 0.5); skyG = lerpC(10, 100, f * 0.3); skyB = lerpC(20, 60, f * 0.6);
             sunInt = lerp(0.05, 0.6, f); ambInt = lerp(0.08, 0.4, f); fogFar = lerp(60, 160, f);
         } else if (t < 0.5) {    // dawn → noon
             const f = (t - 0.25) / 0.25;
-            skyR = lerpC(255 * 0.4, 135, f); skyG = lerpC(140 * 0.4, 206, f); skyB = lerpC(80, 235, f);
+            skyR = lerpC(90, 100, f); skyG = lerpC(40, 140, f); skyB = lerpC(36, 200, f);
             sunInt = lerp(0.6, 2.0, f); ambInt = lerp(0.4, 0.9, f); fogFar = lerp(160, 300, f);
         } else if (t < 0.75) {   // noon → dusk
             const f = (t - 0.5) / 0.25;
