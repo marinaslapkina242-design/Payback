@@ -630,7 +630,7 @@ input{outline:none;font-family:var(--font-ui)}
         <!-- RIGHT SIDE: Action buttons (like Payback 2) -->
         <div class="hud-right-btns" id="hud-right-btns">
             <div class="hud-rbtn" onclick="G._tryEnterCar()" title="E - войти/выйти из машины">🚗</div>
-            <div class="hud-rbtn" onclick="G.toggleCamera()" title="V - вид камеры"><span id="cam-label">👁</span></div>
+            <div class="hud-rbtn" onclick="G.toggleCamera()" title="V - вид камеры"><span id="cam-label">FPS</span></div>
             <div class="hud-rbtn" onclick="G.exitGame()" style="border-color:rgba(255,32,32,.4);color:rgba(255,80,80,.8)">✕</div>
         </div>
 
@@ -984,6 +984,11 @@ const G = {
         this._setupControls();
         this._connectWS();
         this._startModeLogic();
+        this._initAudio();
+        this.camMode = 'fps';
+        const lbl = document.getElementById('cam-label');
+        if (lbl) lbl.textContent = 'FPS';
+        this._spawnAICars();
         this.mode = 'game';
         this._lastFrame = performance.now();
         this._animLoop();
@@ -998,7 +1003,7 @@ const G = {
         if (this.posInterval) { clearInterval(this.posInterval); this.posInterval = null; }
         if (this.modeTimerInterval) { clearInterval(this.modeTimerInterval); this.modeTimerInterval = null; }
         if (this.renderer) { this.renderer.dispose(); this.renderer = null; }
-        this.scene = null; this.others = {}; this.inCar = false; this.hp = 100;
+        this.scene = null; this.others = {}; this.inCar = false; this.hp = 100; this.aiCars = [];
         this.scoreRed = 0; this.scoreBlue = 0;
         document.getElementById('screen-game').style.display = 'none';
         document.getElementById('finish-screen').style.display = 'none';
@@ -1022,7 +1027,7 @@ const G = {
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
         this.scene = new THREE.Scene();
-        this.scene.fog = new THREE.Fog(0xc8d8f0, 80, 280);
+        this.scene.fog = new THREE.Fog(0x87CEEB, 60, 300);
         this.scene.background = new THREE.Color(0x87CEEB);
 
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
@@ -1551,8 +1556,13 @@ const G = {
         canvas.addEventListener('mousemove', e => {
             if (this.mode !== 'game') return;
             this.camYaw   += e.movementX * 0.002;
-            this.camPitch += e.movementY * 0.002;
-            this.camPitch  = Math.max(0.1, Math.min(1.5, this.camPitch));
+            if (this.camMode === 'fps') {
+                this.camPitch += e.movementY * 0.002;
+                this.camPitch = Math.max(-1.2, Math.min(1.2, this.camPitch));
+            } else {
+                this.camPitch += e.movementY * 0.002;
+                this.camPitch = Math.max(0.1, Math.min(1.5, this.camPitch));
+            }
         });
         canvas.addEventListener('click', () => { if (this.mode === 'game') canvas.requestPointerLock(); });
         canvas.addEventListener('mousedown', e => { if (e.button === 0) { this.mouse.down = true; this._shoot(); } });
@@ -1597,9 +1607,19 @@ const G = {
     },
 
     toggleCamera() {
-        this.camMode = this.camMode === 'tps' ? 'topdown' : 'tps';
-        document.getElementById('cam-label').textContent = this.camMode === 'tps' ? 'ТПС' : 'TOP';
-        this.showToast(this.camMode === 'tps' ? '📷 Вид от третьего лица' : '🗺 Вид сверху');
+        const modes = ['fps', 'tps', 'topdown'];
+        const labels = { fps:'👁 ОТ 1-ГО ЛИЦА', tps:'📷 ОТ 3-ГО ЛИЦА', topdown:'🗺 СВЕРХУ' };
+        const idx = modes.indexOf(this.camMode);
+        this.camMode = modes[(idx + 1) % modes.length];
+        const lbl = document.getElementById('cam-label');
+        if (lbl) lbl.textContent = this.camMode.toUpperCase();
+        // In FPS hide player body
+        if (this.playerGroup) {
+            this.playerGroup.traverse(m => { if (m.isMesh) m.layers.set(this.camMode === 'fps' ? 1 : 0); });
+            this.camera.layers.enableAll();
+            if (this.camMode === 'fps') this.camera.layers.disable(1);
+        }
+        this.showToast(labels[this.camMode]);
     },
     touchEnterCar() { this._tryEnterCar(); },
     touchShoot(down) { this.mouse.down = down; if (down) this._shoot(); },
@@ -1637,13 +1657,18 @@ const G = {
             if (this.keys['KeyA'] || this.keys['ArrowLeft']  || td.x < -0.2) { move.addScaledVector(right, -speed * dt); moving = true; }
             if (this.keys['KeyD'] || this.keys['ArrowRight'] || td.x > 0.2)  { move.addScaledVector(right, speed * dt); moving = true; }
 
-            // Collision with buildings
-            const np = pg.position.clone().add(move);
-            let blocked = false;
+            // Collision — axis-separated so player slides along walls
+            const R = 0.55; // player radius
+            const tryX = pg.position.clone(); tryX.x += move.x;
+            const tryZ = pg.position.clone(); tryZ.z += move.z;
+            let blockX = false, blockZ = false;
             this.buildings.forEach(b => {
-                if (Math.abs(np.x - b.x) < b.w / 2 + 0.6 && Math.abs(np.z - b.z) < b.d / 2 + 0.6) blocked = true;
+                const hw = b.w / 2 + R, hd = b.d / 2 + R;
+                if (Math.abs(tryX.x - b.x) < hw && Math.abs(tryX.z - b.z) < hd) blockX = true;
+                if (Math.abs(tryZ.x - b.x) < hw && Math.abs(tryZ.z - b.z) < hd) blockZ = true;
             });
-            if (!blocked) pg.position.add(move);
+            if (!blockX) pg.position.x += move.x;
+            if (!blockZ) pg.position.z += move.z;
             pg.position.clamp(new THREE.Vector3(-190, 0, -190), new THREE.Vector3(190, 0, 190));
 
             // Face movement direction
@@ -1669,6 +1694,8 @@ const G = {
                 }
             }
 
+            // Step sounds
+            if (moving && Math.random() < 0.04) this._playSound('step', 0.1);
             // Auto-shoot
             const w = this.weapons[this.curWeapon];
             if ((this.mouse.down || this.keys['Space']) && w.auto) this._shoot();
@@ -1688,12 +1715,20 @@ const G = {
             const carFwd = new THREE.Vector3(Math.sin(this.carAngle), 0, Math.cos(this.carAngle));
             const newCarPos = car.position.clone().addScaledVector(carFwd, this.carSpeed * dt);
 
-            // Car collision
-            let carBlocked = false;
+            // Car collision — axis-separated with bounce
+            const carR = 2.3;
+            const tryCarX = car.position.clone(); tryCarX.x = newCarPos.x;
+            const tryCarZ = car.position.clone(); tryCarZ.z = newCarPos.z;
+            let hitX = false, hitZ = false;
             this.buildings.forEach(b => {
-                if (Math.abs(newCarPos.x - b.x) < b.w / 2 + 1.5 && Math.abs(newCarPos.z - b.z) < b.d / 2 + 2.5) { carBlocked = true; this.carSpeed *= -0.4; }
+                const hw = b.w/2 + carR, hd = b.d/2 + carR;
+                if (Math.abs(tryCarX.x - b.x) < hw && Math.abs(tryCarX.z - b.z) < hd) hitX = true;
+                if (Math.abs(tryCarZ.x - b.x) < hw && Math.abs(tryCarZ.z - b.z) < hd) hitZ = true;
             });
-            if (!carBlocked) { car.position.copy(newCarPos); car.position.clamp(new THREE.Vector3(-190, 0, -190), new THREE.Vector3(190, 0, 190)); }
+            if (hitX || hitZ) { this.carSpeed *= -0.35; this._playSound('bump'); }
+            if (!hitX) car.position.x = newCarPos.x;
+            if (!hitZ) car.position.z = newCarPos.z;
+            car.position.clamp(new THREE.Vector3(-190, 0, -190), new THREE.Vector3(190, 0, 190));
 
             // Wheel spin
             const wspeed = this.carSpeed * dt * 3;
@@ -1703,6 +1738,13 @@ const G = {
             pg.position.copy(car.position);
             pg.visible = false;
 
+            // Engine sound
+            if (Math.abs(this.carSpeed) > 0.5) this._playSound('engine', 0.2);
+            // Tyre smoke at high speed or hard braking
+            if (Math.abs(this.carSpeed) > 18 && car._wheels) {
+                const smokePos = car.position.clone(); smokePos.y = 0.1;
+                if (Math.random() < 0.15) this._spawnTyreSmoke(smokePos);
+            }
             // Car speedometer
             const kmh = Math.abs(Math.round(this.carSpeed * 3.6));
             const speedEl = document.getElementById('car-speed');
@@ -1717,6 +1759,10 @@ const G = {
 
         // ── CAMERA ──
         this._updateCamera();
+        // ── DAY/NIGHT ──
+        this._updateDayNight(dt);
+        // ── AI TRAFFIC ──
+        this._updateAICars(dt);
 
         // ── MODE LOGIC ──
         if (this.currentMode === 'race') this._checkRaceCheckpoint();
@@ -1735,16 +1781,81 @@ const G = {
     _updateCamera() {
         if (!this.playerGroup) return;
         const target = this.inCar ? this.car.position : this.playerGroup.position;
+
         if (this.camMode === 'topdown') {
             this.camera.position.set(target.x, target.y + 45, target.z + 8);
             this.camera.lookAt(target.x, target.y, target.z);
+
+        } else if (this.camMode === 'fps') {
+            // First-person: camera inside player head
+            const eyeH = this.inCar ? 1.4 : 2.15;
+            const eyeX = target.x + Math.sin(this.camYaw) * 0.1;
+            const eyeZ = target.z + Math.cos(this.camYaw) * 0.1;
+            this.camera.position.set(eyeX, target.y + eyeH, eyeZ);
+            // Look direction from yaw+pitch
+            const lookX = target.x + Math.sin(this.camYaw) * 10;
+            const lookY = target.y + eyeH + Math.tan(-this.camPitch) * 10;
+            const lookZ = target.z + Math.cos(this.camYaw) * 10;
+            this.camera.lookAt(lookX, lookY, lookZ);
+            // Hide player mesh in FPS (show in TPS)
+            if (this.playerGroup) this.playerGroup.visible = this.inCar ? false : false;
+
         } else {
-            const dist = 10, height = 5.5;
+            // TPS
+            if (this.playerGroup) this.playerGroup.visible = !this.inCar;
+            const dist = 10, height = 5.0;
             const camX = target.x - Math.sin(this.camYaw) * dist;
             const camZ = target.z - Math.cos(this.camYaw) * dist;
-            const camY = target.y + height + Math.sin(this.camPitch) * dist * 0.4;
+            const camY = target.y + height + this.camPitch * dist * 0.4;
             this.camera.position.set(camX, camY, camZ);
             this.camera.lookAt(target.x, target.y + 1.5, target.z);
+        }
+    },
+
+    _updateDayNight(dt) {
+        this.dayTime = (this.dayTime + this.daySpeed * dt * 1000) % 1.0;
+        const t = this.dayTime;
+        // Colours at key times
+        // t=0: night, t=0.25: dawn, t=0.5: noon, t=0.75: dusk
+        const lerpC = (a, b, f) => Math.round(a + (b - a) * f);
+        const lerp  = (a, b, f) => a + (b - a) * f;
+
+        let skyR, skyG, skyB, sunInt, ambInt, fogFar;
+        if (t < 0.25) {          // night → dawn
+            const f = t / 0.25;
+            skyR = lerpC(10, 255, f * 0.4); skyG = lerpC(10, 140, f * 0.4); skyB = lerpC(30, 80, f);
+            sunInt = lerp(0.05, 0.6, f); ambInt = lerp(0.08, 0.4, f); fogFar = lerp(60, 160, f);
+        } else if (t < 0.5) {    // dawn → noon
+            const f = (t - 0.25) / 0.25;
+            skyR = lerpC(255 * 0.4, 135, f); skyG = lerpC(140 * 0.4, 206, f); skyB = lerpC(80, 235, f);
+            sunInt = lerp(0.6, 2.0, f); ambInt = lerp(0.4, 0.9, f); fogFar = lerp(160, 300, f);
+        } else if (t < 0.75) {   // noon → dusk
+            const f = (t - 0.5) / 0.25;
+            skyR = lerpC(135, 255, f * 0.8); skyG = lerpC(206, 120, f); skyB = lerpC(235, 50, f);
+            sunInt = lerp(2.0, 0.5, f); ambInt = lerp(0.9, 0.3, f); fogFar = lerp(300, 120, f);
+        } else {                  // dusk → night
+            const f = (t - 0.75) / 0.25;
+            skyR = lerpC(255 * 0.8, 10, f); skyG = lerpC(120, 10, f); skyB = lerpC(50, 30, f);
+            sunInt = lerp(0.5, 0.05, f); ambInt = lerp(0.3, 0.08, f); fogFar = lerp(120, 60, f);
+        }
+        if (this.scene) {
+            this.scene.background = new THREE.Color(skyR/255, skyG/255, skyB/255);
+            this.scene.fog.far = fogFar;
+        }
+        if (this.sun) {
+            this.sun.intensity = sunInt;
+            // Rotate sun around scene
+            const angle = t * Math.PI * 2;
+            this.sun.position.set(Math.cos(angle) * 80, Math.sin(angle) * 80, 30);
+        }
+        if (this.ambient) this.ambient.intensity = ambInt;
+
+        // Star field at night: just dim everything further handled by ambInt
+        // Street lights turn on at night
+        const isNight = t < 0.22 || t > 0.78;
+        if (this._streetLightIntensity !== isNight) {
+            this._streetLightIntensity = isNight;
+            // handled by point lights already in scene
         }
     },
 
@@ -1815,9 +1926,10 @@ const G = {
         w.ammo--;
         this._updateHUD();
 
-        // Raycast
-        const origin = this.playerGroup.position.clone(); origin.y += 1.4;
-        const dir = new THREE.Vector3(-Math.sin(this.camYaw), 0, -Math.cos(this.camYaw));
+        // Raycast - shoots in camera look direction
+        const origin = this.playerGroup.position.clone();
+        origin.y += this.camMode === 'fps' ? 2.15 : 1.4;
+        const dir = new THREE.Vector3(Math.sin(this.camYaw), -Math.sin(this.camPitch), Math.cos(this.camYaw)).normalize();
         const ray = new THREE.Raycaster(origin, dir.normalize(), 0, w.range);
 
         // Bullet tracer
@@ -1834,13 +1946,17 @@ const G = {
             }
         }
 
+        // Shoot sound
+        this._playSound('shoot', 0.4);
         // Muzzle flash
         this._spawnMuzzleFlash();
 
         // RPG — explosion
+        // Impact mark on surfaces
+        this._spawnImpactMark(origin.clone().addScaledVector(dir, Math.min(w.range, 30)));
         if (this.curWeapon === 4) {
             const hitPos = origin.clone().addScaledVector(dir, w.range * 0.7);
-            this._spawnExplosion(hitPos);
+            this._spawnExplosion(hitPos); this._playSound('explode', 0.7);
             this._wsSend({ type: 'explosion', id: this.player.id, map: this.currentMap, x: hitPos.x, y: hitPos.y, z: hitPos.z });
         }
     },
@@ -2241,6 +2357,152 @@ const G = {
         chat.appendChild(el);
         if (chat.children.length > 6) chat.removeChild(chat.firstChild);
         setTimeout(() => { if (el.parentNode) el.remove(); }, 8000);
+    },
+
+
+    // ─────────────────────────────────────
+    // SOUND ENGINE (Web Audio API)
+    // ─────────────────────────────────────
+    _initAudio() {
+        try {
+            this._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch(e) {}
+    },
+
+    _playSound(type, vol = 0.5) {
+        if (!this._audioCtx) return;
+        try {
+            const ctx = this._audioCtx;
+            const g = ctx.createGain(); g.gain.value = vol; g.connect(ctx.destination);
+            const o = ctx.createOscillator();
+            if (type === 'shoot') {
+                // Sharp gunshot: noise burst
+                const buf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+                const data = buf.getChannelData(0);
+                for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+                const src = ctx.createBufferSource(); src.buffer = buf;
+                const filt = ctx.createBiquadFilter(); filt.type = 'bandpass'; filt.frequency.value = 800; filt.Q.value = 0.5;
+                src.connect(filt); filt.connect(g); src.start(); return;
+            }
+            if (type === 'engine') {
+                o.type = 'sawtooth';
+                const kmh = Math.abs(this.carSpeed * 3.6);
+                o.frequency.value = 60 + kmh * 2.5;
+                o.connect(g); o.start(); o.stop(ctx.currentTime + 0.08); return;
+            }
+            if (type === 'bump') {
+                o.type = 'sine'; o.frequency.setValueAtTime(120, ctx.currentTime); o.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.15);
+                g.gain.setValueAtTime(0.4, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+                o.connect(g); o.start(); o.stop(ctx.currentTime + 0.2); return;
+            }
+            if (type === 'explode') {
+                const buf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
+                const data = buf.getChannelData(0);
+                for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.2));
+                const src = ctx.createBufferSource(); src.buffer = buf;
+                const filt = ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 300;
+                src.connect(filt); filt.connect(g); src.start(); return;
+            }
+            if (type === 'step') {
+                o.type = 'sine'; o.frequency.value = 80 + Math.random() * 40;
+                g.gain.setValueAtTime(0.15, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                o.connect(g); o.start(); o.stop(ctx.currentTime + 0.1); return;
+            }
+        } catch(e) {}
+    },
+
+    // ─────────────────────────────────────
+    // AI TRAFFIC
+    // ─────────────────────────────────────
+    _spawnAICars() {
+        this.aiCars = [];
+        const aiColors = [0xee4444, 0x4444ee, 0x44aa44, 0xeeee44, 0xaa44aa, 0x44aaee, 0xffffff, 0x888888];
+        const aiRoutes = [
+            { waypoints: [{x:80,z:0},{x:0,z:80},{x:-80,z:0},{x:0,z:-80}], speed: 8 + Math.random()*4 },
+            { waypoints: [{x:-80,z:0},{x:0,z:-80},{x:80,z:0},{x:0,z:80}], speed: 7 + Math.random()*5 },
+            { waypoints: [{x:40,z:0},{x:0,z:40},{x:-40,z:0},{x:0,z:-40}], speed: 9 + Math.random()*3 },
+            { waypoints: [{x:60,z:40},{x:-60,z:40},{x:-60,z:-40},{x:60,z:-40}], speed: 10 + Math.random()*4 },
+        ];
+        for (let i = 0; i < 6; i++) {
+            const route = aiRoutes[i % aiRoutes.length];
+            const color = aiColors[i % aiColors.length];
+            const wp = route.waypoints;
+            const start = wp[i % wp.length];
+            const car = this._buildCar(start.x + (Math.random()-0.5)*5, start.z + (Math.random()-0.5)*5, color, false);
+            car._ai = true;
+            car._wpIdx = (i + 1) % wp.length;
+            car._waypoints = wp;
+            car._aiSpeed = route.speed;
+            car._aiAngle = 0;
+            this.aiCars.push(car);
+            this.carBodies.push(car);
+        }
+    },
+
+    _updateAICars(dt) {
+        if (!this.aiCars) return;
+        this.aiCars.forEach(car => {
+            const wp = car._waypoints[car._wpIdx];
+            const dx = wp.x - car.position.x;
+            const dz = wp.z - car.position.z;
+            const dist = Math.sqrt(dx*dx + dz*dz);
+            // Reached waypoint?
+            if (dist < 5) { car._wpIdx = (car._wpIdx + 1) % car._waypoints.length; return; }
+            // Steer toward waypoint
+            const targetAngle = Math.atan2(dx, dz);
+            let diff = targetAngle - car._aiAngle;
+            while (diff > Math.PI) diff -= Math.PI*2;
+            while (diff < -Math.PI) diff += Math.PI*2;
+            car._aiAngle += diff * Math.min(1, 3 * dt);
+            car.rotation.y = car._aiAngle;
+            // Move
+            const fwd = new THREE.Vector3(Math.sin(car._aiAngle), 0, Math.cos(car._aiAngle));
+            const newPos = car.position.clone().addScaledVector(fwd, car._aiSpeed * dt);
+            // Collision with buildings only
+            let blocked = false;
+            this.buildings.forEach(b => {
+                if (Math.abs(newPos.x - b.x) < b.w/2 + 2.5 && Math.abs(newPos.z - b.z) < b.d/2 + 2.5) blocked = true;
+            });
+            if (!blocked) car.position.copy(newPos);
+            // Wheel spin
+            if (car._wheels) car._wheels.forEach(w => w.rotation.x -= car._aiSpeed * dt * 0.8);
+        });
+    },
+
+    // ─────────────────────────────────────
+    // TYRE SMOKE & EFFECTS
+    // ─────────────────────────────────────
+    _spawnTyreSmoke(pos) {
+        if (!this.scene) return;
+        for (let i = 0; i < 3; i++) {
+            const s = 0.3 + Math.random() * 0.4;
+            const smoke = new THREE.Mesh(
+                new THREE.SphereGeometry(s, 5, 5),
+                new THREE.MeshBasicMaterial({ color: 0xaaaaaa, transparent: true, opacity: 0.5 })
+            );
+            smoke.position.copy(pos);
+            smoke.position.x += (Math.random()-0.5)*0.5;
+            smoke.position.z += (Math.random()-0.5)*0.5;
+            this.scene.add(smoke);
+            let t = 0;
+            const tick = () => {
+                t += 0.04; smoke.position.y += 0.03; smoke.scale.multiplyScalar(1.03);
+                smoke.material.opacity = 0.5 * (1 - t);
+                if (t < 1) requestAnimationFrame(tick); else if (this.scene) this.scene.remove(smoke);
+            };
+            tick();
+        }
+    },
+
+    _spawnImpactMark(pos) {
+        if (!this.scene) return;
+        const mark = new THREE.Mesh(
+            new THREE.CircleGeometry(0.15, 6),
+            new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.8 })
+        );
+        mark.rotation.x = -Math.PI/2; mark.position.copy(pos); mark.position.y = 0.02;
+        this.scene.add(mark);
+        setTimeout(() => { if (this.scene) this.scene.remove(mark); }, 8000);
     },
 
     // ─────────────────────────────────────
