@@ -166,108 +166,159 @@ input{outline:none;font-family:var(--font-ui)}
 
 /* ═══ GAME HUD ═══ */
 #screen-game{position:fixed;inset:0;z-index:100;display:none}
-#game-canvas{display:block;width:100%;height:100%;background:#111}
+#game-canvas{display:block;width:100%;height:100%}
 #hud{position:absolute;inset:0;pointer-events:none;z-index:10}
 
-/* HP bar */
-.hud-hp{
-    position:absolute;bottom:24px;left:24px;
-    background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.1);
-    border-radius:10px;padding:10px 16px;min-width:160px;
-    backdrop-filter:blur(12px);
-}
-.hud-hp-label{font-size:9px;font-family:var(--font-mono);letter-spacing:3px;color:rgba(255,255,255,.3);margin-bottom:5px}
-.hud-hp-bar{height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}
-.hud-hp-fill{height:100%;border-radius:3px;transition:width .2s,background .2s;background:var(--g)}
-.hud-hp-val{font-family:var(--font-head);font-size:20px;color:#fff;line-height:1;margin-top:4px}
-
-/* Weapon */
-.hud-weapon{
-    position:absolute;bottom:24px;right:24px;
-    background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.1);
-    border-radius:10px;padding:10px 16px;text-align:right;
-    backdrop-filter:blur(12px);
-}
-.hud-weapon-name{font-size:9px;font-family:var(--font-mono);letter-spacing:3px;color:rgba(255,255,255,.3);margin-bottom:4px}
-.hud-ammo{font-family:var(--font-head);font-size:28px;color:#fff;line-height:1}
-.hud-ammo span{font-size:16px;color:rgba(255,255,255,.4)}
-.hud-weapon-icon{font-size:22px;filter:drop-shadow(0 0 6px rgba(255,255,255,.3))}
-
-/* Minimap */
+/* ── MINIMAP (top-left, like Payback 2) ── */
 .hud-map{
-    position:absolute;top:16px;right:16px;
-    width:140px;height:140px;border-radius:12px;overflow:hidden;
-    border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.8);
-    backdrop-filter:blur(8px);
+    position:absolute;top:10px;left:10px;
+    width:110px;height:110px;border-radius:6px;overflow:hidden;
+    border:2px solid rgba(255,255,255,.25);background:rgba(0,0,0,.85);
+    box-shadow:0 2px 12px rgba(0,0,0,.7);
 }
 .hud-map canvas{width:100%;height:100%}
+.hud-map-label{
+    position:absolute;bottom:0;left:0;right:0;
+    background:rgba(0,0,0,.7);font-family:var(--font-mono);font-size:9px;
+    letter-spacing:2px;color:rgba(255,255,255,.5);text-align:center;padding:2px 0;
+}
 
-/* Kill feed */
-.hud-killfeed{position:absolute;top:16px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:4px;align-items:center;min-width:300px}
+/* ── WEAPON (top-right, like Payback 2) ── */
+.hud-weapon{
+    position:absolute;top:10px;right:10px;
+    display:flex;flex-direction:column;align-items:flex-end;gap:2px;
+}
+.hud-weapon-icon{font-size:32px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.8))}
+.hud-weapon-name{font-family:var(--font-ui);font-size:11px;font-weight:700;color:#fff;
+    text-shadow:0 1px 4px rgba(0,0,0,.9);letter-spacing:1px}
+.hud-ammo{font-family:var(--font-head);font-size:20px;color:#fff;line-height:1;
+    text-shadow:0 1px 4px rgba(0,0,0,.9)}
+.hud-ammo span{font-size:14px;color:rgba(255,255,255,.5)}
+
+/* ── MONEY (right side, below weapon) ── */
+.hud-money{
+    position:absolute;top:90px;right:10px;text-align:right;
+}
+.hud-money-val{font-family:var(--font-head);font-size:22px;color:#FFD600;
+    text-shadow:0 1px 6px rgba(0,0,0,.9),0 0 20px rgba(255,214,0,.3);line-height:1}
+.hud-money-mul{font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.4)}
+
+/* ── SPEEDOMETER (top-center, like Payback 2) ── */
+.hud-speedo{
+    position:absolute;top:10px;left:50%;transform:translateX(-50%);
+    display:flex;align-items:center;gap:10px;
+    background:rgba(0,0,0,.55);border-radius:8px;padding:6px 16px;
+    border:1px solid rgba(255,255,255,.1);
+}
+.hud-speedo-num{font-family:var(--font-head);font-size:26px;color:#fff;line-height:1;min-width:48px;text-align:right}
+.hud-speedo-kmh{font-family:var(--font-mono);font-size:9px;color:rgba(255,255,255,.4);letter-spacing:2px;align-self:flex-end;padding-bottom:2px}
+.hud-speedo-gear{
+    width:28px;height:28px;border-radius:6px;
+    background:rgba(255,214,0,.15);border:1px solid rgba(255,214,0,.3);
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-head);font-size:16px;color:var(--y);
+}
+
+/* ── HP bar (bottom-center) ── */
+.hud-hp{
+    position:absolute;bottom:16px;left:50%;transform:translateX(-50%);
+    display:flex;align-items:center;gap:8px;
+    background:rgba(0,0,0,.55);border-radius:8px;padding:6px 14px;
+    border:1px solid rgba(255,255,255,.08);
+}
+.hud-hp-icon{font-size:14px}
+.hud-hp-bar{width:120px;height:7px;background:rgba(255,255,255,.1);border-radius:4px;overflow:hidden}
+.hud-hp-fill{height:100%;border-radius:4px;transition:width .2s,background .2s;background:var(--g)}
+.hud-hp-val{font-family:var(--font-head);font-size:16px;color:#fff;line-height:1;min-width:30px}
+
+/* ── KILL FEED (top-center below speedo) ── */
+.hud-killfeed{position:absolute;top:60px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:3px;align-items:center}
 .kill-entry{
-    background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.08);
-    border-radius:8px;padding:6px 14px;font-size:12px;font-family:var(--font-mono);
-    animation:killSlide .3s ease;white-space:nowrap;
-    backdrop-filter:blur(8px);
+    background:rgba(0,0,0,.7);border-radius:6px;padding:4px 12px;
+    font-size:11px;font-family:var(--font-mono);animation:killSlide .3s ease;white-space:nowrap;
 }
-@keyframes killSlide{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+@keyframes killSlide{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 
-/* Mode HUD top-left */
+/* ── MODE INFO (under minimap) ── */
 .hud-mode{
-    position:absolute;top:16px;left:16px;
-    background:rgba(0,0,0,.7);border:1px solid rgba(255,32,32,.15);
-    border-radius:10px;padding:10px 16px;min-width:180px;
-    backdrop-filter:blur(12px);
+    position:absolute;top:128px;left:10px;
+    background:rgba(0,0,0,.6);border-radius:6px;padding:5px 10px;
+    border:1px solid rgba(255,32,32,.2);
 }
-.hud-mode-name{font-family:var(--font-head);font-size:18px;letter-spacing:2px;color:var(--r)}
-.hud-mode-info{font-size:11px;font-family:var(--font-mono);color:rgba(255,255,255,.4);margin-top:3px}
-.hud-timer{font-family:var(--font-head);font-size:28px;color:#fff;line-height:1}
-.hud-score{display:flex;gap:16px;margin-top:6px}
-.hud-score-team{display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:14px;font-weight:700}
+.hud-mode-name{font-family:var(--font-head);font-size:13px;letter-spacing:1px;color:var(--r);line-height:1}
+.hud-mode-info{font-size:9px;font-family:var(--font-mono);color:rgba(255,255,255,.35);margin-top:2px}
+.hud-timer{font-family:var(--font-head);font-size:22px;color:#fff;line-height:1;margin-top:2px}
+.hud-score{display:flex;gap:12px;margin-top:4px}
+.hud-score-team{display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:12px;font-weight:700}
 
-/* Crosshair */
+/* ── CROSSHAIR ── */
 .crosshair{
     position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-    width:20px;height:20px;pointer-events:none;
+    width:24px;height:24px;pointer-events:none;
 }
-.crosshair::before,.crosshair::after{content:'';position:absolute;background:rgba(255,255,255,.8)}
-.crosshair::before{width:100%;height:1px;top:50%;box-shadow:0 0 4px rgba(255,255,255,.4)}
-.crosshair::after{width:1px;height:100%;left:50%;box-shadow:0 0 4px rgba(255,255,255,.4)}
-.crosshair .dot{position:absolute;width:3px;height:3px;background:#fff;border-radius:50%;top:50%;left:50%;transform:translate(-50%,-50%);box-shadow:0 0 4px rgba(255,255,255,.6)}
+.crosshair::before,.crosshair::after{content:'';position:absolute;background:rgba(255,255,255,.75)}
+.crosshair::before{width:8px;height:1px;top:50%;left:0;box-shadow:12px 0 0 rgba(255,255,255,.75)}
+.crosshair::after{width:1px;height:8px;left:50%;top:0;box-shadow:0 12px 0 rgba(255,255,255,.75)}
+.crosshair .dot{position:absolute;width:3px;height:3px;background:rgba(255,255,255,.9);border-radius:50%;top:50%;left:50%;transform:translate(-50%,-50%)}
 
-/* In-car indicator */
-.hud-car{
-    position:absolute;bottom:24px;left:50%;transform:translateX(-50%);
-    background:rgba(0,0,0,.7);border:1px solid rgba(255,214,0,.2);
-    border-radius:10px;padding:8px 20px;
-    backdrop-filter:blur(12px);font-family:var(--font-mono);font-size:12px;color:var(--y);
-    display:none;
+/* ── IN-CAR HUD ── */
+.hud-car{display:none}
+
+/* ── RIGHT SIDE BUTTONS (like Payback 2) ── */
+.hud-right-btns{
+    position:absolute;top:50%;right:10px;transform:translateY(-50%);
+    display:flex;flex-direction:column;gap:6px;pointer-events:auto;
 }
-.hud-speed{font-family:var(--font-head);font-size:22px;color:#fff;text-align:center;line-height:1}
-.hud-gear{font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.3);text-align:center}
-
-/* Camera toggle */
-.hud-cam-btn{
-    position:absolute;bottom:24px;right:200px;
-    background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.1);
-    border-radius:8px;padding:8px 14px;
-    font-family:var(--font-mono);font-size:11px;color:rgba(255,255,255,.5);
-    pointer-events:auto;cursor:pointer;
+.hud-rbtn{
+    width:44px;height:44px;border-radius:8px;
+    background:rgba(0,0,0,.55);border:1.5px solid rgba(255,255,255,.2);
+    display:flex;align-items:center;justify-content:center;font-size:18px;
+    cursor:pointer;-webkit-tap-highlight-color:transparent;
+    box-shadow:0 2px 8px rgba(0,0,0,.5);
 }
-.hud-cam-btn:hover{border-color:rgba(255,255,255,.3);color:#fff}
+.hud-rbtn:active{background:rgba(255,32,32,.3);border-color:var(--r)}
 
-/* Exit button */
+/* ── CAMERA toggle small ── */
+.hud-cam-btn{display:none}
+
+/* ── EXIT ── */
 .hud-exit{
-    position:absolute;top:16px;right:170px;
-    background:rgba(255,32,32,.08);border:1px solid rgba(255,32,32,.2);
-    color:rgba(255,80,80,.8);border-radius:8px;padding:8px 16px;
-    font-family:var(--font-ui);font-size:12px;font-weight:700;
+    position:absolute;top:10px;left:50%;transform:translateX(-50%);
+    background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);
+    color:rgba(255,255,255,.6);border-radius:6px;padding:5px 14px;
+    font-family:var(--font-ui);font-size:11px;font-weight:700;
     pointer-events:auto;cursor:pointer;
 }
-.hud-exit:hover{background:rgba(255,32,32,.16);color:#ff5050}
+.hud-exit:hover{background:rgba(255,32,32,.2);color:#fff}
 
-/* Damage flash */
-#damage-flash{position:absolute;inset:0;background:rgba(255,0,0,.25);pointer-events:none;opacity:0;transition:opacity .05s}
+/* ── DAMAGE FLASH ── */
+#damage-flash{position:absolute;inset:0;background:rgba(255,0,0,.3);pointer-events:none;opacity:0;transition:opacity .05s}
+
+/* ── ONLINE ── */
+.online-mini{
+    position:absolute;top:128px;right:10px;
+    background:rgba(0,0,0,.5);border-radius:6px;padding:4px 10px;
+    border:1px solid rgba(32,255,128,.15);
+}
+.online-dot{width:5px;height:5px;border-radius:50%;background:var(--g);display:inline-block;margin-right:5px;animation:blink 2s infinite}
+
+/* ── CHAT ── */
+.hud-chat{
+    position:absolute;bottom:50px;left:10px;width:240px;
+    display:flex;flex-direction:column;gap:3px;pointer-events:none;
+}
+.chat-msg{
+    background:rgba(0,0,0,.6);border-radius:6px;padding:4px 8px;
+    font-size:11px;font-family:var(--font-mono);line-height:1.4;
+    animation:fadeInUp .2s ease;
+}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.hud-chat-input{
+    position:absolute;bottom:16px;left:130px;
+    background:rgba(0,0,0,.8);border:1px solid rgba(255,32,32,.3);
+    color:#fff;border-radius:6px;padding:6px 12px;
+    font-size:12px;font-family:var(--font-mono);width:180px;pointer-events:auto;
+}
 
 /* Race checkpoints */
 .hud-race{
@@ -538,33 +589,57 @@ input{outline:none;font-family:var(--font-ui)}
 <div id="screen-game">
     <canvas id="game-canvas"></canvas>
     <div id="hud">
-        <!-- Режим -->
+
+        <!-- TOP-LEFT: Minimap -->
+        <div class="hud-map">
+            <canvas id="minimap-canvas" width="110" height="110"></canvas>
+            <div class="hud-map-label">КАРТА</div>
+        </div>
+
+        <!-- TOP-LEFT below map: Mode info -->
         <div class="hud-mode" id="hud-mode">
             <div class="hud-mode-name" id="hud-mode-name">FREE ROAM</div>
-            <div class="hud-mode-info" id="hud-mode-info">Карта: Город</div>
+            <div class="hud-mode-info" id="hud-mode-info">Город</div>
             <div class="hud-timer hidden" id="hud-timer">05:00</div>
             <div class="hud-score hidden" id="hud-score">
-                <div class="hud-score-team" id="score-red" style="color:var(--r)">🔴 <span id="score-r">0</span></div>
-                <div class="hud-score-team" id="score-blue" style="color:var(--b)">🔵 <span id="score-b">0</span></div>
+                <div class="hud-score-team" style="color:var(--r)">🔴 <span id="score-r">0</span></div>
+                <div class="hud-score-team" style="color:var(--b)">🔵 <span id="score-b">0</span></div>
             </div>
         </div>
 
-        <!-- HP -->
+        <!-- TOP-CENTER: Speedometer -->
+        <div class="hud-speedo" id="hud-speedo">
+            <div class="hud-speedo-gear" id="speedo-gear">1</div>
+            <div class="hud-speedo-num" id="car-speed">0</div>
+            <div class="hud-speedo-kmh">КМ/Ч</div>
+        </div>
+
+        <!-- TOP-RIGHT: Weapon -->
+        <div class="hud-weapon">
+            <div class="hud-weapon-icon" id="weapon-icon">🔫</div>
+            <div class="hud-weapon-name" id="weapon-name-label">ПИСТОЛЕТ</div>
+            <div class="hud-ammo"><span id="ammo-cur">30</span><span style="color:rgba(255,255,255,.35)"> / </span><span id="ammo-max">90</span></div>
+        </div>
+
+        <!-- RIGHT below weapon: Money -->
+        <div class="hud-money">
+            <div class="hud-money-val" id="hud-cash">$0</div>
+            <div class="hud-money-mul">ДЕНЬГИ</div>
+        </div>
+
+        <!-- RIGHT SIDE: Action buttons (like Payback 2) -->
+        <div class="hud-right-btns" id="hud-right-btns">
+            <div class="hud-rbtn" onclick="G._tryEnterCar()" title="E - войти/выйти из машины">🚗</div>
+            <div class="hud-rbtn" onclick="G.toggleCamera()" title="V - вид камеры"><span id="cam-label">👁</span></div>
+            <div class="hud-rbtn" onclick="G.exitGame()" style="border-color:rgba(255,32,32,.4);color:rgba(255,80,80,.8)">✕</div>
+        </div>
+
+        <!-- BOTTOM-CENTER: HP -->
         <div class="hud-hp">
-            <div class="hud-hp-label">ЗДОРОВЬЕ</div>
+            <div class="hud-hp-icon">❤️</div>
             <div class="hud-hp-bar"><div class="hud-hp-fill" id="hp-fill" style="width:100%"></div></div>
             <div class="hud-hp-val" id="hp-val">100</div>
         </div>
-
-        <!-- Weapon -->
-        <div class="hud-weapon">
-            <div class="hud-weapon-name">ОРУЖИЕ</div>
-            <div class="hud-weapon-icon" id="weapon-icon">🔫</div>
-            <div class="hud-ammo"><span id="ammo-cur">30</span><span>/</span><span id="ammo-max">90</span></div>
-        </div>
-
-        <!-- Minimap -->
-        <div class="hud-map"><canvas id="minimap-canvas" width="140" height="140"></canvas></div>
 
         <!-- Kill feed -->
         <div class="hud-killfeed" id="killfeed"></div>
@@ -572,12 +647,8 @@ input{outline:none;font-family:var(--font-ui)}
         <!-- Crosshair -->
         <div class="crosshair" id="crosshair"><div class="dot"></div></div>
 
-        <!-- Car HUD -->
-        <div class="hud-car" id="hud-car">
-            🚗 В МАШИНЕ
-            <div class="hud-speed" id="car-speed">0</div>
-            <div class="hud-gear">КМ/Ч</div>
-        </div>
+        <!-- Car HUD (hidden, speed shown in speedo) -->
+        <div class="hud-car" id="hud-car"></div>
 
         <!-- Race HUD -->
         <div class="hud-race hidden" id="hud-race">
@@ -589,17 +660,13 @@ input{outline:none;font-family:var(--font-ui)}
         <!-- Online -->
         <div class="online-mini" id="online-mini">
             <span class="online-dot"></span>
-            <span style="font-family:var(--font-mono);font-size:11px;color:rgba(255,255,255,.5)"><span id="game-online-count">1</span> онлайн</span>
+            <span style="font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.4)"><span id="game-online-count">1</span> онлайн</span>
         </div>
 
         <!-- Chat -->
         <div class="hud-chat" id="hud-chat"></div>
         <input class="hud-chat-input hidden" id="chat-input" placeholder="Сообщение... (Enter)" maxlength="80"
                onkeydown="if(event.key==='Enter'){G.sendChat();} if(event.key==='Escape'){G.closeChat();}">
-
-        <!-- Buttons (pointer-events: auto) -->
-        <div class="hud-cam-btn" id="cam-btn" onclick="G.toggleCamera()" style="pointer-events:auto">📷 ВИД: <span id="cam-label">ТПС</span></div>
-        <button class="hud-exit" onclick="G.exitGame()">✕ ВЫЙТИ</button>
 
         <!-- Damage flash -->
         <div id="damage-flash"></div>
@@ -613,12 +680,19 @@ input{outline:none;font-family:var(--font-ui)}
             </div>
         </div>
 
-        <!-- Touch controls -->
+        <!-- Touch controls (Payback 2 style: arrows bottom-left, buttons bottom-right) -->
         <div id="touch-btns">
-            <div class="t-btn" id="tbtn-shoot" style="bottom:120px;right:24px" ontouchstart="G.touchShoot(true)" ontouchend="G.touchShoot(false)">🔫</div>
-            <div class="t-btn" id="tbtn-car" style="bottom:60px;right:24px" ontouchstart="G.touchEnterCar()">🚗</div>
-            <div class="t-btn" style="bottom:120px;left:24px;width:130px;height:130px;border-radius:50%;background:transparent;border:none" id="joystick-zone"></div>
+            <!-- Joystick/arrows bottom-left -->
+            <div class="t-btn" style="bottom:90px;left:24px;width:120px;height:120px;border-radius:50%;background:transparent;border:none" id="joystick-zone"></div>
+            <!-- Shoot bottom-right -->
+            <div class="t-btn" style="bottom:100px;right:70px;width:64px;height:64px;border-radius:50%;background:rgba(255,32,32,.35);border-color:rgba(255,32,32,.6);font-size:26px" ontouchstart="G.touchShoot(true)" ontouchend="G.touchShoot(false)">🔫</div>
+            <!-- Enter car -->
+            <div class="t-btn" style="bottom:100px;right:150px;font-size:20px" ontouchstart="G.touchEnterCar()">🚗</div>
         </div>
+
+        <!-- Exit button hidden (now in right btns) -->
+        <button class="hud-exit hidden" onclick="G.exitGame()">✕</button>
+        <div class="hud-cam-btn" id="cam-btn"></div>
     </div>
 </div>
 
@@ -948,15 +1022,15 @@ const G = {
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
         this.scene = new THREE.Scene();
-        this.scene.fog = new THREE.FogExp2(0x101018, 0.018);
-        this.scene.background = new THREE.Color(0x0a0810);
+        this.scene.fog = new THREE.Fog(0xc8d8f0, 80, 280);
+        this.scene.background = new THREE.Color(0x87CEEB);
 
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
 
         // Lighting
-        const ambient = new THREE.AmbientLight(0x404060, 0.6);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.8);
         this.scene.add(ambient);
-        const sun = new THREE.DirectionalLight(0xffeecc, 1.2);
+        const sun = new THREE.DirectionalLight(0xfff5e0, 1.8);
         sun.position.set(40, 80, 30);
         sun.castShadow = true;
         sun.shadow.camera.far = 300;
@@ -964,9 +1038,9 @@ const G = {
         sun.shadow.camera.right = sun.shadow.camera.top = 80;
         sun.shadow.mapSize.set(2048, 2048);
         this.scene.add(sun);
-        // City lights
-        const light1 = new THREE.PointLight(0xff2020, 2, 30); light1.position.set(0, 15, 0); this.scene.add(light1);
-        const light2 = new THREE.PointLight(0x2080ff, 1.5, 25); light2.position.set(30, 12, -30); this.scene.add(light2);
+        // Fill light from opposite side
+        const fillLight = new THREE.DirectionalLight(0xccddff, 0.4);
+        fillLight.position.set(-30, 20, -20); this.scene.add(fillLight);
 
         window.addEventListener('resize', () => {
             this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -984,7 +1058,7 @@ const G = {
         const map = this.currentMap;
 
         // Ground
-        const groundColor = map === 'desert' ? 0xc4a87a : map === 'port' ? 0x2a3040 : 0x1a1825;
+        const groundColor = map === 'desert' ? 0xd4b87a : map === 'port' ? 0x3a4050 : 0x888888;
         const ground = new THREE.Mesh(
             new THREE.PlaneGeometry(400, 400),
             new THREE.MeshStandardMaterial({ color: groundColor, roughness: 0.9 })
@@ -1016,8 +1090,9 @@ const G = {
     },
 
     _buildCity() {
-        // Roads (dark asphalt)
-        const roadMat = new THREE.MeshStandardMaterial({ color: 0x1c1c28, roughness: 0.95 });
+        // Roads (dark asphalt with road markings)
+        const roadMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.95 });
+        const markMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
         // Main horizontal road
         const r1 = new THREE.Mesh(new THREE.PlaneGeometry(200, 12), roadMat);
         r1.rotation.x = -Math.PI / 2; r1.position.set(0, 0.01, 0); this.scene.add(r1);
@@ -1029,39 +1104,60 @@ const G = {
             const rr = new THREE.Mesh(new THREE.PlaneGeometry(vert ? 8 : 200, vert ? 200 : 8), roadMat);
             rr.rotation.x = -Math.PI / 2; rr.position.set(vert ? pos : 0, 0.01, vert ? 0 : pos); this.scene.add(rr);
         });
+        // Road center line markings
+        for (let i = -90; i < 90; i += 8) {
+            const line = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 4), markMat);
+            line.rotation.x = -Math.PI / 2; line.position.set(0, 0.02, i); this.scene.add(line);
+            const line2 = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.3), markMat);
+            line2.rotation.x = -Math.PI / 2; line2.position.set(i, 0.02, 0); this.scene.add(line2);
+        }
 
-        // Buildings — blocks of the city
+        // Buildings — blocks of the city (Payback 2 style: light concrete/brick)
         const buildingConfigs = [
-            // Skyscrapers (center)
-            { x:25, z:25, w:14, d:14, h:45, c:0x2a2535 },
-            { x:-25, z:25, w:12, d:12, h:38, c:0x1e2030 },
-            { x:25, z:-25, w:16, d:10, h:42, c:0x252035 },
-            { x:-25, z:-25, w:10, d:16, h:35, c:0x1a1a28 },
-            // Mid-rise
-            { x:55, z:25, w:20, d:16, h:22, c:0x2a2030 },
-            { x:-55, z:25, w:18, d:14, h:28, c:0x1e2230 },
-            { x:55, z:-25, w:16, d:20, h:18, c:0x252535 },
-            { x:-55, z:-25, w:22, d:18, h:25, c:0x201820 },
+            // Skyscrapers (center) — glass/concrete
+            { x:25, z:25, w:14, d:14, h:45, c:0x8899aa },
+            { x:-25, z:25, w:12, d:12, h:38, c:0xaa9988 },
+            { x:25, z:-25, w:16, d:10, h:42, c:0x99aabb },
+            { x:-25, z:-25, w:10, d:16, h:35, c:0xbbaa99 },
+            // Mid-rise — brick/concrete
+            { x:55, z:25, w:20, d:16, h:22, c:0xcc9966 },
+            { x:-55, z:25, w:18, d:14, h:28, c:0xaabb99 },
+            { x:55, z:-25, w:16, d:20, h:18, c:0xcc8855 },
+            { x:-55, z:-25, w:22, d:18, h:25, c:0x99aacc },
             // Far blocks
-            { x:25, z:55, w:14, d:18, h:16, c:0x2a2030 },
-            { x:-25, z:55, w:18, d:14, h:20, c:0x1e2235 },
-            { x:25, z:-55, w:16, d:16, h:24, c:0x252030 },
-            { x:-25, z:-55, w:12, d:20, h:18, c:0x201a28 },
-            { x:80, z:0, w:24, d:18, h:14, c:0x1a1e28 },
-            { x:-80, z:0, w:20, d:22, h:16, c:0x222030 },
-            { x:0, z:80, w:18, d:24, h:12, c:0x1e2030 },
-            { x:0, z:-80, w:22, d:20, h:18, c:0x252235 },
+            { x:25, z:55, w:14, d:18, h:16, c:0xbbaa88 },
+            { x:-25, z:55, w:18, d:14, h:20, c:0x99bbaa },
+            { x:25, z:-55, w:16, d:16, h:24, c:0xcc9977 },
+            { x:-25, z:-55, w:12, d:20, h:18, c:0xaabb88 },
+            { x:80, z:0, w:24, d:18, h:14, c:0xbbccaa },
+            { x:-80, z:0, w:20, d:22, h:16, c:0x99aabb },
+            { x:0, z:80, w:18, d:24, h:12, c:0xcc9966 },
+            { x:0, z:-80, w:22, d:20, h:18, c:0xaabbcc },
         ];
         buildingConfigs.forEach(b => {
             const mesh = this._box(b.w, b.h, b.d, b.c, b.x, b.h/2, b.z);
             this.buildings.push({ mesh, x: b.x, z: b.z, w: b.w, d: b.d });
-            // Emissive windows
-            const winMat = new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xffdd88 : 0x88aaff });
-            for (let wi = 0; wi < 3; wi++) {
-                const win = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.8), winMat);
-                win.position.set(b.x + (Math.random() - 0.5) * b.w * 0.8, Math.random() * b.h * 0.7 + 2, b.z + b.d / 2 + 0.1);
-                this.scene.add(win);
+            // Windows grid
+            const winMat = new THREE.MeshBasicMaterial({ color: 0x99ccff, transparent: true, opacity: 0.7 });
+            const winRows = Math.floor(b.h / 4);
+            for (let row = 0; row < winRows; row++) {
+                for (let col = 0; col < 3; col++) {
+                    const win = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.5), winMat);
+                    const wx = b.x + (col - 1) * (b.w * 0.3);
+                    const wy = 3 + row * 4;
+                    win.position.set(wx, wy, b.z + b.d / 2 + 0.05);
+                    this.scene.add(win);
+                    // Back face
+                    const win2 = win.clone();
+                    win2.position.set(wx, wy, b.z - b.d / 2 - 0.05);
+                    win2.rotation.y = Math.PI;
+                    this.scene.add(win2);
+                }
             }
+            // Sidewalk around building
+            const swMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.9 });
+            const sw = new THREE.Mesh(new THREE.PlaneGeometry(b.w + 4, b.d + 4), swMat);
+            sw.rotation.x = -Math.PI / 2; sw.position.set(b.x, 0.02, b.z); this.scene.add(sw);
         });
         // Street lights
         for (let i = -80; i <= 80; i += 20) {
@@ -1396,7 +1492,7 @@ const G = {
         if (!this.playerGroup) return;
         const speed = this.inCar ? 0 : 6;
         const pg = this.playerGroup;
-        const fwd = new THREE.Vector3(-Math.sin(this.camYaw), 0, -Math.cos(this.camYaw));
+        const fwd = new THREE.Vector3(Math.sin(this.camYaw), 0, Math.cos(this.camYaw));
         const right = new THREE.Vector3(fwd.z, 0, -fwd.x);
 
         if (!this.inCar) {
@@ -1420,7 +1516,7 @@ const G = {
 
             // Face movement direction
             if (moving && (Math.abs(move.x) > 0.001 || Math.abs(move.z) > 0.001)) {
-                const targetY = Math.atan2(-move.x, -move.z);
+                const targetY = Math.atan2(move.x, move.z);
                 let diff = targetY - pg.rotation.y;
                 while (diff > Math.PI) diff -= Math.PI * 2;
                 while (diff < -Math.PI) diff += Math.PI * 2;
@@ -1457,7 +1553,7 @@ const G = {
             if ((this.keys['KeyD'] || this.keys['ArrowRight']|| td2.x > 0.2)  && Math.abs(this.carSpeed) > 0.5) this.carAngle -= 1.8 * dt * Math.sign(this.carSpeed);
 
             car.rotation.y = this.carAngle;
-            const carFwd = new THREE.Vector3(-Math.sin(this.carAngle), 0, -Math.cos(this.carAngle));
+            const carFwd = new THREE.Vector3(Math.sin(this.carAngle), 0, Math.cos(this.carAngle));
             const newCarPos = car.position.clone().addScaledVector(carFwd, this.carSpeed * dt);
 
             // Car collision
@@ -1476,7 +1572,12 @@ const G = {
             pg.visible = false;
 
             // Car speedometer
-            document.getElementById('car-speed').textContent = Math.abs(Math.round(this.carSpeed * 3.6));
+            const kmh = Math.abs(Math.round(this.carSpeed * 3.6));
+            const speedEl = document.getElementById('car-speed');
+            if (speedEl) speedEl.textContent = kmh;
+            const gear = this.carSpeed < 0 ? 'R' : kmh < 20 ? '1' : kmh < 50 ? '2' : kmh < 80 ? '3' : kmh < 110 ? '4' : '5';
+            const gearEl = document.getElementById('speedo-gear');
+            if (gearEl) gearEl.textContent = gear;
 
             // Broadcast car
             this._wsSend({ type:'car_move', id: this.player.id, map: this.currentMap, x: car.position.x, y: car.position.y, z: car.position.z, ry: this.carAngle, speed: this.carSpeed });
@@ -1506,12 +1607,12 @@ const G = {
             this.camera.position.set(target.x, target.y + 45, target.z + 8);
             this.camera.lookAt(target.x, target.y, target.z);
         } else {
-            const dist = 7, height = 3.5;
-            const camX = target.x + Math.sin(this.camYaw) * dist;
-            const camZ = target.z + Math.cos(this.camYaw) * dist;
-            const camY = target.y + height + Math.sin(this.camPitch) * dist * 0.5;
+            const dist = 10, height = 5.5;
+            const camX = target.x - Math.sin(this.camYaw) * dist;
+            const camZ = target.z - Math.cos(this.camYaw) * dist;
+            const camY = target.y + height + Math.sin(this.camPitch) * dist * 0.4;
             this.camera.position.set(camX, camY, camZ);
-            this.camera.lookAt(target.x, target.y + 1, target.z);
+            this.camera.lookAt(target.x, target.y + 1.5, target.z);
         }
     },
 
@@ -2034,18 +2135,26 @@ const G = {
         // Weapon
         const w = this.weapons[this.curWeapon];
         const icon = document.getElementById('weapon-icon');
+        const nameLabel = document.getElementById('weapon-name-label');
         const cur  = document.getElementById('ammo-cur');
         const max  = document.getElementById('ammo-max');
         if (icon) icon.textContent = w.icon;
+        if (nameLabel) nameLabel.textContent = w.name;
         if (cur) cur.textContent = w.ammo;
         if (max) max.textContent = w.maxAmmo;
+        // Money
+        const cashEl = document.getElementById('hud-cash');
+        if (cashEl && this.player) cashEl.textContent = '$' + (this.player.cash || 0);
+        // Speedo — always show, 0 when on foot
+        const speedEl = document.getElementById('car-speed');
+        if (speedEl && !this.inCar) speedEl.textContent = '0';
         // Mode
         const modeNames = { free:'FREE ROAM', race:'ГОНКИ', gang:'GANG WARFARE', ctf:'ЗАХВАТ ФЛАГА' };
         const modeEl = document.getElementById('hud-mode-name');
         if (modeEl) modeEl.textContent = modeNames[this.currentMode] || 'FREE ROAM';
         const mapNames = { city:'Город', port:'Порт', desert:'Пустыня' };
         const infoEl = document.getElementById('hud-mode-info');
-        if (infoEl) infoEl.textContent = 'Карта: ' + (mapNames[this.currentMap] || this.currentMap);
+        if (infoEl) infoEl.textContent = mapNames[this.currentMap] || this.currentMap;
     },
 
     _startModeLogic() {
