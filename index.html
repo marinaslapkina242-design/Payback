@@ -910,8 +910,9 @@ const G = {
         this._setupControls();
         this._connectWS();
         this._startModeLogic();
-        this._animLoop();
         this.mode = 'game';
+        this._lastFrame = performance.now();
+        this._animLoop();
         this._pingOnline();
         setInterval(() => this._pingOnline(), 5000);
         this._updateHUD();
