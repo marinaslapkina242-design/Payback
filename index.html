@@ -151,7 +151,7 @@ window.addEventListener('resize', () => {
 
 // ── Input
 const keys = {};
-window.addEventListener('keydown', e => { keys[e.code]=true;  if(['Space','KeyQ','KeyE','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
+window.addEventListener('keydown', e => { keys[e.code]=true;  if(['mouseLeft','KeyQ','KeyE','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
 window.addEventListener('keyup',   e => { keys[e.code]=false; });
 
 // ── Game state
@@ -176,7 +176,7 @@ const ZONES = [
 // ── Player
 const P = {
   x:0, y:0, vx:0, vy:0,
-  hp:100, maxHp:100, rage:0, maxRage:100,
+  hp:1000, maxHp:1000, rage:0, maxRage:1000,
   size:20, speed:5.2,
   invincTimer:0,
   // attacks
@@ -437,7 +437,7 @@ function update() {
 
   // ── Attacks
   // Punch
-  if(keys['Space'] && !P.punching) {
+  if(keys['mouseLeft'] && !P.punching) {
     P.punching=true; P.punchTimer=20;
     P.punchDir=Math.atan2(P.vy||0, P.vx||1);
     const ox=P.x+Math.cos(P.punchDir)*38, oy=P.y+Math.sin(P.punchDir)*38;
@@ -466,7 +466,7 @@ function update() {
 
   // Laser (E)
   if(keys['KeyE'] && P.rage>=20) {
-    P.laser=true; P.laserTimer=5;
+    P.laser=true; P.laserTimer=15;
     P.rage=Math.max(0,P.rage-0.7);
     laserHit();
     burst(P.x,P.y,3,'#ffff00',3,2,15);
